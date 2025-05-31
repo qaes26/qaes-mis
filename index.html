@@ -3,354 +3,651 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شرح الفصل الخامس: إدارة قواعد البيانات</title>
+    <title>تطبيق شرح إدارة قواعد البيانات</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices:
+        - Report Info: Hierarchy of Data (Bit to Database) -> Goal: Organize/Inform -> Viz: Interactive HTML/CSS nested list/diagram -> Interaction: Click to expand/collapse/show definition -> Justification: Visually represents the structure, easier to grasp than plain text. Method: HTML lists styled with Tailwind.
+        - Report Info: Traditional File System Problems -> Goal: Inform/Compare -> Viz: Icon-accompanied list of problems, conceptual diagram (HTML/CSS) contrasting traditional vs. DBMS (based on Fig 5.2) -> Interaction: Click problem for details. -> Justification: Highlights drawbacks effectively. Method: HTML, Tailwind, Unicode icons.
+        - Report Info: DBMS Models (Relational, Hierarchical, Network, OODBMS) -> Goal: Compare/Inform -> Viz: Tabbed interface. For Relational: HTML table for Fig 5.4 to show keys. For Hierarchical/Network: HTML/CSS diagrams based on Fig 5.5, 5.7. For OODBMS: Textual explanation. Conceptual Chart.js scatter chart: X-axis 'Ease of Use/Development', Y-axis 'Data Model Flexibility/Power', with points for RDBMS, Hierarchical, Network, OODBMS. -> Interaction: Tabs to switch models, hover on keys/diagram parts for tooltips. Chart tooltips. -> Justification: Allows focused study and comparison. Diagrams clarify structures. Chart provides a high-level comparative summary. Method: HTML, Tailwind, Chart.js.
+        - Report Info: DBMS Components (DDL, DML, Data Dictionary) -> Goal: Inform -> Viz: Textual explanations, HTML table for Data Dictionary example (Fig 5.9). -> Interaction: None specific, clear presentation. -> Justification: Direct presentation of definitions and examples. Method: HTML, Tailwind.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* Light gray background */
-            color: #374151; /* Dark gray text */
+            font-family: 'system-ui', 'sans-serif'; /* Standard Tailwind stack which supports Arabic */
         }
-        .container {
-            max-width: 960px; /* Max width for content */
+        .content-section {
+            display: none;
         }
-        h1, h2, h3, h4 {
-            font-weight: 700; /* Bold headings */
-            color: #1f2937; /* Even darker gray for headings */
+        .content-section.active {
+            display: block;
         }
-        .section-card {
-            background-color: #ffffff; /* White card background */
-            border-radius: 0.75rem; /* Rounded corners */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Subtle shadow */
-            padding: 1.5rem; /* Padding inside cards */
-            margin-bottom: 1.5rem; /* Space between cards */
+        .sidebar-link.active {
+            background-color: #e0e7ff; /* indigo-100 */
+            color: #4f46e5; /* indigo-700 */
+            font-weight: bold;
         }
-        .sub-section-title {
-            color: #4b5563; /* Slightly lighter heading for sub-sections */
-            font-weight: 600;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
+        .interactive-box {
+            border: 1px solid #d1d5db; /* gray-300 */
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
         }
-        p {
-            line-height: 1.75; /* Improved readability */
-            margin-bottom: 1rem;
+        .interactive-box:hover {
+            background-color: #f3f4f6; /* gray-100 */
         }
-        ul {
-            list-style-type: disc;
-            margin-right: 1.5rem;
-            margin-bottom: 1rem;
+        .details {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background-color: #eef2ff; /* indigo-50 */
+            border-radius: 0.25rem;
         }
-        ul li {
-            margin-bottom: 0.5rem;
-            line-height: 1.6;
+        .tab-button.active {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
         }
-        .author-info {
-            font-weight: 600;
-            color: #2563eb;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Example max-width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px; /* Max height */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .key-field {
+            cursor: help;
+            position: relative;
+        }
+        .key-field .tooltip-text {
+            visibility: hidden;
+            width: 160px;
+            background-color: #555;
+            color: #fff;
             text-align: center;
-            font-size: 1.125rem;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -80px;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        .figure-description {
-            background-color: #f0f9ff; /* Very light blue for descriptions */
-            border: 1px solid #bfdbfe;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-            font-style: italic;
-            color: #1e40af; /* Darker blue text for description */
+        .key-field:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
         }
+        .primary-key {
+            background-color: #a5f3fc; /* cyan-200 */
+        }
+        .foreign-key {
+            background-color: #fde68a; /* amber-200 */
+        }
+        .data-hierarchy div { margin-right: 1rem; padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 0.25rem; }
+        .data-hierarchy .level-0 { background-color: #fee2e2; } /* red-100 */
+        .data-hierarchy .level-1 { background-color: #ffedd5; margin-right: 2rem; } /* orange-100 */
+        .data-hierarchy .level-2 { background-color: #fef9c3; margin-right: 4rem; } /* yellow-100 */
+        .data-hierarchy .level-3 { background-color: #dcfce7; margin-right: 6rem; } /* green-100 */
+        .data-hierarchy .level-4 { background-color: #dbeafe; margin-right: 8rem; } /* blue-100 */
+        .data-hierarchy .level-5 { background-color: #e0e7ff; margin-right: 10rem; } /* indigo-100 */
+
+        .comparison-diagram { display: flex; justify-content: space-around; align-items: flex-start; }
+        .comparison-diagram > div { border: 2px solid #9ca3af; padding: 1rem; border-radius: 0.5rem; width: 45%; text-align: center; }
+        .comparison-diagram .app-box { background-color: #f3f4f6; border: 1px dashed #6b7280; padding: 0.5rem; margin: 0.5rem auto; border-radius: 0.25rem; max-width: 80%; }
+        .comparison-diagram .dbms-box { background-color: #dcfce7; border: 2px solid #10b981; padding: 1rem; }
+        .comparison-diagram .arrow { font-size: 2rem; color: #6b7280; margin: 0 1rem; align-self: center;}
+
+        .hierarchical-diagram .parent { border: 1px solid #60a5fa; background-color: #eff6ff; padding: 0.5rem; margin-bottom: 0.5rem; text-align: center; border-radius: 4px; }
+        .hierarchical-diagram .children { margin-right: 2rem; padding-right: 1rem; border-right: 1px solid #60a5fa; }
+        .hierarchical-diagram .child { border: 1px solid #a78bfa; background-color: #f5f3ff; padding: 0.5rem; margin-bottom: 0.25rem; text-align: center; border-radius: 4px;}
     </style>
 </head>
-<body class="p-4 sm:p-8">
-    <div class="container mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-blue-700 mb-2">شرح الفصل الخامس: إدارة قواعد البيانات</h1>
-            <p class="text-lg text-gray-600">فهم أساسيات تنظيم وإدارة البيانات في نظم المعلومات الإدارية</p>
-            <div class="author-info">
-                إعداد وتقديم: قيس طلال غالب الجازي
-            </div>
-        </header>
+<body class="bg-gray-100 text-gray-800">
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <aside class="w-full md:w-64 bg-white shadow-md p-4 space-y-2">
+            <h1 class="text-2xl font-bold text-indigo-700 mb-2 text-center">إدارة قواعد البيانات</h1>
+            <p class="text-sm text-gray-500 text-center mb-6">إعداد وتقديم: قيس طلال غالب الجازي</p>
+            <nav id="sidebarNav">
+                <a href="#" data-target="intro" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link active">مقدمة الفصل</a>
+                <a href="#" data-target="fileOrg" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">تنظيم الملفات</a>
+                <a href="#" data-target="traditionalProblems" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">الأنظمة التقليدية ومشكلاتها</a>
+                <a href="#" data-target="dbSolution" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">حلول قواعد البيانات</a>
+                <a href="#" data-target="dbmsModels" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">نماذج نظم إدارة قواعد البيانات</a>
+                <a href="#" data-target="dbTypes" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">أنواع قواعد البيانات</a>
+                <a href="#" data-target="dbmsComponents" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">مكونات نظام إدارة قواعد البيانات</a>
+                <a href="#" data-target="dbBenefits" class="block py-2 px-3 rounded hover:bg-indigo-50 sidebar-link">فوائد قواعد البيانات للأعمال</a>
+            </nav>
+        </aside>
 
-        <main id="main-content">
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">مقدمة الفصل (صفحة 133)</h2>
-                <p>
-                    يبدأ الفصل بتوضيح أن <strong>أهم أهداف أنظمة المعلومات هو تزويد المستخدمين بالمعلومات الدقيقة ذات الصلة في الوقت المناسب</strong>[cite: 10]. ويشير إلى أن:
-                </p>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>المعلومات الدقيقة:</strong> هي المعلومات الخالية من الأخطاء مثل التكرار وعدم التنسيق.
-                    </li>
-                    <li>
-                        <strong>المعلومات ذات الصلة:</strong> تكون مفيدة لصانعي القرار ولإتمام العمل.
-                    </li>
-                    <li>
-                        <strong>المعلومات في الوقت المناسب:</strong> تتوفر لصانعي القرار عندما يحتاجونها.
-                    </li>
-                </ul>
-                <p>
-                    الأنظمة الحديثة تخزن البيانات في ملفات إلكترونية على أجهزة الحواسيب. عندما تحفظ الملفات وتنظم بشكل جيد فإن المستخدمين يستطيعون:
-                </p>
-                <ul class="list-disc pr-6">
+        <main class="flex-1 p-6 md:p-10 overflow-y-auto">
+            <div id="intro" class="content-section active">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">مقدمة الفصل (صفحة 133)</h2>
+                <p class="mb-4 text-lg">يستهل هذا الفصل بالتأكيد على أن الغاية الأساسية من أنظمة المعلومات هي "تزويد المستخدمين بالمعلومات الدقيقة ذات الصلة في الوقت المناسب". هذا المفهوم حيوي لفهم دور قواعد البيانات في عالمنا المعاصر.</p>
+                <div class="grid md:grid-cols-3 gap-4 mb-6">
+                    <div class="interactive-box bg-white shadow rounded-lg" onclick="toggleDetails('details-accurate')">
+                        <h3 class="text-xl font-semibold text-indigo-500">المعلومات الدقيقة</h3>
+                        <p class="text-sm text-gray-600">خالية من الأخطاء والتكرار وعدم التناسق.</p>
+                        <div id="details-accurate" class="details">
+                            <p><strong>التكرار (Redundancy):</strong> وجود نفس المعلومة في أكثر من مكان.</p>
+                            <p><strong>عدم التناسق (Inconsistency):</strong> اختلاف قيم نفس المعلومة المكررة.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow rounded-lg" onclick="toggleDetails('details-relevant')">
+                        <h3 class="text-xl font-semibold text-indigo-500">المعلومات ذات الصلة</h3>
+                        <p class="text-sm text-gray-600">مفيدة لصانعي القرار ولإتمام العمل.</p>
+                        <div id="details-relevant" class="details">
+                            <p>يجب أن ترتبط المعلومة بالسياق الذي يعمل فيه المستخدم أو بالقرار الذي يحتاج لاتخاذه.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow rounded-lg" onclick="toggleDetails('details-timely')">
+                        <h3 class="text-xl font-semibold text-indigo-500">المعلومات في الوقت المناسب</h3>
+                        <p class="text-sm text-gray-600">تتوفر عند الحاجة إليها.</p>
+                        <div id="details-timely" class="details">
+                            <p>تأخر وصول المعلومة قد يجعلها عديمة الفائدة، حتى لو كانت دقيقة وذات صلة.</p>
+                        </div>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-semibold text-indigo-600 mb-3">العمليات الأساسية على البيانات:</h3>
+                <p class="mb-4">عندما يتم حفظ الملفات وتنظيمها بشكل جيد، يمكن للمستخدمين القيام بالعمليات التالية:</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 bg-white p-4 rounded-md shadow">
                     <li>تخزين البيانات (Data Saving)</li>
                     <li>الحصول على المعلومات (Query)</li>
                     <li>تعديل البيانات (Data Updating)</li>
-                    <li>استرجاع المعلومات (Information Retrieving) بشكل سهل عندما يحتاجون لذلك.</li>
+                    <li>استرجاع المعلومات (Information Retrieving)</li>
                 </ul>
             </div>
 
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">جدول محتويات الفصل (صفحة 134)</h2>
-                <p>
-                    (هذه الصفحة تحتوي على فهرس لموضوعات الفصل الخامس، وتوضح العناوين الرئيسية والفرعية التي سيتم تناولها في الصفحات التالية). [cite: 10]
-                </p>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.1 تنظيم الملفات (صفحة 135)</h2>
-                <p>
-                    لتنظيم الملفات وفهم كيفية تخزين البيانات، يجب التعرف على الوحدات الأساسية التي تتكون منها البيانات في الحاسوب:
-                </p>
-                <h3 class="sub-section-title">البت (Bit):</h3>
-                <ul class="list-disc pr-6">
-                    <li>هو أصغر وحدة تخزين يمكن للحاسوب تخزينه حيث تكون قيمة (Bit) إما 1 أو صفر.</li>
-                    <li>يعتبر اختصار لكلمة (Binary Digit).</li>
-                </ul>
-                <h3 class="sub-section-title">البايت (Byte):</h3>
-                <ul class="list-disc pr-6">
-                    <li>هو مجموعة من ثمانية (Bits).</li>
-                    <li>يستخدم لتخزين الأرقام ما بين صفر و 255.</li>
-                    <li>يمكن تصور (Byte) على الشكل التالي:</li>
-                    <div class="figure-description">
-                        <strong>جدول يوضح 8 خانات للبتات (تصور البايت):</strong>
-                        <p>يُظهر هذا الجدول ثمانية مربعات متجاورة، يمثل كل منها "بت" واحد، ويمكن أن يحتوي على قيمة 0 أو 1. يوضح هذا الترتيب كيف تتجمع البتات لتشكل "بايت" واحد، وهو الوحدة الأساسية لتخزين حرف واحد أو رقم صغير.</p>
+            <div id="fileOrg" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">تنظيم الملفات (صفحات 135-137)</h2>
+                <p class="mb-4 text-lg">لفهم كيفية تنظيم الملفات وقواعد البيانات، يجب البدء من أصغر وحدة تخزين وصولاً إلى الهياكل الأكبر. هذا القسم يوضح البنية الهرمية للبيانات.</p>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-3">هيكلية البيانات (Hierarchy of Data)</h3>
+                    <p class="mb-3">انقر على العناصر لاستكشاف تعريفاتها:</p>
+                    <div class="data-hierarchy">
+                        <div class="level-0 interactive-box" onclick="toggleDetails('details-db')">قاعدة البيانات (Database)
+                            <div id="details-db" class="details text-sm">مجموعة الملفات المترابطة تكون قاعدة البيانات.</div>
+                        </div>
+                        <div class="level-1 interactive-box" onclick="toggleDetails('details-file')">الملف (File)
+                            <div id="details-file" class="details text-sm">مجموعة من السجلات ذات النوع الواحد. يصف كينونة (Entity).</div>
+                        </div>
+                        <div class="level-2 interactive-box" onclick="toggleDetails('details-record')">السجل (Record)
+                             <div id="details-record" class="details text-sm">مجموعة الحقول المترابطة تشكل السجل.</div>
+                        </div>
+                        <div class="level-3 interactive-box" onclick="toggleDetails('details-field')">الحقل (Field)
+                            <div id="details-field" class="details text-sm">مجموعة من البايتات تمثل معلومة واحدة (سمة - Attribute). مثال: اسم شخص.</div>
+                        </div>
+                        <div class="level-4 interactive-box" onclick="toggleDetails('details-byte')">البايت (Byte)
+                            <div id="details-byte" class="details text-sm">مجموعة من 8 بتات. يمثل حرفًا واحدًا أو رمزًا. يمكنه تمثيل 256 قيمة (0-255).</div>
+                        </div>
+                        <div class="level-5 interactive-box" onclick="toggleDetails('details-bit')">البت (Bit)
+                            <div id="details-bit" class="details text-sm">أصغر وحدة تخزين، قيمتها 0 أو 1.</div>
+                        </div>
                     </div>
-                    <li>إن أكبر قيمة يمكن تخزينها في (Byte) هي 11111111 وهي تعادل في النظام العشري 255.</li>
-                </ul>
+                </div>
+                 <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h4 class="text-xl font-medium text-indigo-500 mb-2">الكيان (Entity)</h4>
+                        <p>يمثل شخص، مكان، شيء، أو حدث يمكن وصفه بمعلومات محددة يمكن تخزينها والمحافظة عليها.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h4 class="text-xl font-medium text-indigo-500 mb-2">السمة (Attribute)</h4>
+                        <p>كل خاصية من الممكن أن تصف بها الكينونة. مثال: رقم الطالب، اسم الطالب.</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">تابع: تنظيم الملفات (هيكلية البيانات) (صفحة 136)</h2>
-                <p>
-                    تتدرج وحدات تخزين البيانات في الحاسوب بشكل هرمي تبدأ من أصغر إلى أكبر وحدة على النحو التالي:
-                </p>
-                <ul class="list-disc pr-6">
-                    <li><strong>البت (Bit):</strong> أصغر وحدة.</li>
-                    <li><strong>البايت (Byte):</strong> مجموعة من البتات.</li>
-                    <li>
-                        <strong>الحقل (Field):</strong>
-                        مجموعة من البايتات التي تشكل حرفًا أو كلمة أو رقمًا كاملاً. على سبيل المثال، "اسم الطالب" أو "رقم الهوية".
-                    </li>
-                    <li>
-                        <strong>السجل (Record):</strong>
-                        مجموعة من الحقول المترابطة التي تصف كيانًا واحدًا (مثل بيانات طالب كاملة: الاسم، رقم الهوية، التخصص).
-                    </li>
-                    <li>
-                        <strong>الملف (File):</strong>
-                        مجموعة من السجلات ذات الصلة (مثل ملف يحتوي على جميع سجلات الطلاب في الجامعة).
-                    </li>
-                    <li>
-                        <strong>قاعدة البيانات (Database):</strong>
-                        مجموعة من الملفات المترابطة والتي تم تصميمها للوصول إلى البيانات المخزنة فيها وتعديلها وإدارتها بكفاءة.
-                    </li>
-                </ul>
+            <div id="traditionalProblems" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">الأنظمة التقليدية ومشكلاتها (صفحات 137-140)</h2>
+                <p class="mb-4 text-lg">في الماضي، كانت أنظمة الملفات تتطور بشكل مستقل لكل قسم، مما أدى إلى مشاكل جوهرية. هذا القسم يستعرض هذه التحديات.</p>
+                <div class="space-y-4 mb-6">
+                    <div class="interactive-box bg-white shadow" onclick="toggleDetails('details-redundancy')">
+                        <h3 class="text-xl font-semibold text-red-500">⚠️ (1) تكرار وعدم تناسق البيانات</h3>
+                        <div id="details-redundancy" class="details">
+                            <p><strong>تكرار البيانات (Data Redundancy):</strong> ظهور نفس البيانات في أكثر من ملف، مما يهدر الموارد ويؤدي إلى عدم تناسق.</p>
+                            <p><strong>عدم تناسق البيانات (Data Inconsistency):</strong> اختلاف قيم نفس الخصائص من موقع لآخر، أو استخدام رموز مختلفة لنفس القيمة.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow" onclick="toggleDetails('details-dependency')">
+                        <h3 class="text-xl font-semibold text-red-500">🔗 (2) ارتباط البرنامج مع البيانات</h3>
+                        <div id="details-dependency" class="details">
+                            <p>أي تغيير في البرمجيات يؤثر على البيانات، والعكس صحيح. تغيير بنية البيانات يتطلب تغيير البرامج التي تستخدمها، مما يكلف وقتاً وجهداً كبيراً.</p>
+                            <p>مثال: تغيير طول الرمز البريدي يتطلب تعديل جميع البرامج في كل الأقسام.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow" onclick="toggleDetails('details-flexibility')">
+                        <h3 class="text-xl font-semibold text-red-500">📊 (3) صعوبة استحداث تقارير متنوعة</h3>
+                        <div id="details-flexibility" class="details">
+                            <p>الاعتماد على المبرمجين لاستحداث تقارير روتينية. التقارير الجديدة أو الاستفسارات غير المتوقعة تحتاج لجهود برمجة كبيرة، مما يجعل العملية بطيئة ومكلفة.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow" onclick="toggleDetails('details-security')">
+                        <h3 class="text-xl font-semibold text-red-500">🛡️ (4) ضعف أمن الملفات</h3>
+                        <div id="details-security" class="details">
+                            <p>صعوبة تطبيق قواعد أمن مركزية ومتسقة بسبب توزيع البيانات واعتماد الأمن على المبرمج لكل نظام.</p>
+                        </div>
+                    </div>
+                    <div class="interactive-box bg-white shadow" onclick="toggleDetails('details-sharing')">
+                         <h3 class="text-xl font-semibold text-red-500">🤝 (5) صعوبة المشاركة في البيانات</h3>
+                        <div id="details-sharing" class="details">
+                            <p>عزل البيانات في "صوامع" خاصة بكل قسم يجعل مشاركة البيانات والاستفادة المتكاملة منها شبه مستحيلة.</p>
+                        </div>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-semibold text-indigo-600 mb-3">المعالجة التقليدية للبيانات (مفهوم شكل 5.2)</h3>
+                <div class="comparison-diagram bg-white p-4 rounded-lg shadow">
+                    <div>
+                        <h4 class="text-lg font-medium mb-2">النظام التقليدي</h4>
+                        <div class="app-box">تطبيق التصنيع <br/> (ملفات وبرامج خاصة)</div>
+                        <div class="app-box">تطبيق المبيعات <br/> (ملفات وبرامج خاصة)</div>
+                        <div class="app-box">تطبيق المحاسبة <br/> (ملفات وبرامج خاصة)</div>
+                        <p class="mt-2 text-sm text-red-600">بيانات معزولة ومكررة</p>
+                    </div>
+                    <div class="arrow">➔</div>
+                    <div>
+                         <h4 class="text-lg font-medium mb-2">نظام قاعدة البيانات</h4>
+                         <div class="app-box">تطبيق التصنيع</div>
+                         <div class="app-box">تطبيق المبيعات</div>
+                         <div class="app-box">تطبيق المحاسبة</div>
+                         <div class="dbms-box mt-2">نظام إدارة قاعدة البيانات (DBMS) <br/> (بيانات مركزية ومشتركة)</div>
+                    </div>
+                </div>
             </div>
 
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.2 التنظيم التقليدي للملفات (صفحة 137)</h2>
-                <p>
-                    يشير هذا القسم إلى طريقة تخزين البيانات في ملفات منفصلة لكل تطبيق أو قسم في المؤسسة. على سبيل المثال، قد يكون لقسم المبيعات ملف بيانات خاص به، وقسم المحاسبة ملف آخر.
-                </p>
-                <p>
-                    على الرغم من بساطتها الظاهرية، إلا أن هذه الطريقة تسبب مشاكل كبيرة.
-                </p>
-                <h3 class="sub-section-title">5.2.1 المشاكل في بيئة الملفات التقليدية (صفحة 138)</h3>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>تكرار البيانات (Data Redundancy):</strong>
-                        نفس البيانات يمكن أن تكون مخزنة في ملفات متعددة. مثلاً، معلومات العميل قد تكون في ملف المبيعات وملف المحاسبة. هذا يؤدي إلى:
-                        <ul>
-                            <li>إهدار في مساحة التخزين.</li>
-                            <li>زيادة في وقت الإدخال.</li>
-                            <li>احتمالية عالية للأخطاء (إذا تم تحديث معلومة في مكان ولم يتم في مكان آخر).</li>
+            <div id="dbSolution" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">حلول قواعد البيانات (صفحات 141-142)</h2>
+                <p class="mb-4 text-lg">ظهرت قواعد البيانات كحل للمشاكل المتأصلة في الأنظمة التقليدية، مقدمةً نهجًا مركزيًا ومنظمًا لإدارة البيانات.</p>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-2">مفهوم قاعدة البيانات</h3>
+                    <p class="mb-3">"مجموعة من البيانات المنظمة والمترابطة لتخدم التطبيقات بواسطة مركزية التحكم وعدم تكرار البيانات."</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>تظهر البيانات للمستخدم كأنها مخزنة في موقع واحد.</li>
+                        <li>مثال: قاعدة بيانات "الموارد البشرية" تخدم تطبيقات الرواتب وشؤون الموظفين.</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-2">نظام إدارة قاعدة البيانات (DBMS)</h3>
+                    <p class="mb-3">هو البرنامج الذي يدير قاعدة البيانات، ويعمل كحلقة وصل بين التطبيقات وملفات البيانات الفعلية. يتيح التعامل المركزي، الإدارة الفعالة، وسهولة الوصول للمعلومات.</p>
+                    <h4 class="text-xl font-medium text-indigo-500 my-3">الفصل بين النظرة المنطقية والمادية (مفهوم شكل 5.3)</h4>
+                    <p class="mb-2">يحرر نظام إدارة قواعد البيانات المستخدم من معرفة تفاصيل تخزين البيانات الفيزيائية.</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="border p-3 rounded bg-blue-50">
+                            <h5 class="font-semibold">المنظور المنطقي (Logical View)</h5>
+                            <p>كيف يرى المستخدم أو التطبيق البيانات. يمكن أن تكون هناك عدة مناظير منطقية مختلفة لنفس قاعدة البيانات.</p>
+                        </div>
+                        <div class="border p-3 rounded bg-green-50">
+                            <h5 class="font-semibold">المنظور المادي (Physical View)</h5>
+                            <p>كيف يتم تخزين البيانات وتنظيمها فعليًا على وسائط التخزين. هذا التفصيل مخفي عن المستخدم.</p>
+                        </div>
+                    </div>
+                     <p class="mt-3">يوفر نظام إدارة قواعد البيانات أكثر من منظور منطقي بناءً على احتياجات المستخدمين المختلفة من نفس قاعدة البيانات المادية.</p>
+                </div>
+            </div>
+            
+            <div id="dbmsModels" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">نماذج نظم إدارة قواعد البيانات (صفحات 142-149)</h2>
+                <p class="mb-4 text-lg">نماذج البيانات هي طرق لتنظيم البيانات والعلاقات بينها. هذا القسم يستعرض النماذج الرئيسية مع أمثلة توضيحية.</p>
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="flex space-x-4" aria-label="Tabs" role="tablist">
+                        <button type="button" class="tab-button hs-tab-active:bg-indigo-600 hs-tab-active:text-white py-2 px-4 inline-flex items-center gap-2 bg-transparent text-sm font-medium text-center text-gray-500 rounded-lg hover:text-indigo-600 active" id="tab-btn-relational" role="tab" aria-controls="tab-relational">
+                            العلائقي (RDBMS)
+                        </button>
+                        <button type="button" class="tab-button hs-tab-active:bg-indigo-600 hs-tab-active:text-white py-2 px-4 inline-flex items-center gap-2 bg-transparent text-sm font-medium text-center text-gray-500 rounded-lg hover:text-indigo-600" id="tab-btn-hierarchical" role="tab" aria-controls="tab-hierarchical">
+                            الهرمي
+                        </button>
+                        <button type="button" class="tab-button hs-tab-active:bg-indigo-600 hs-tab-active:text-white py-2 px-4 inline-flex items-center gap-2 bg-transparent text-sm font-medium text-center text-gray-500 rounded-lg hover:text-indigo-600" id="tab-btn-network" role="tab" aria-controls="tab-network">
+                            الشبكي
+                        </button>
+                        <button type="button" class="tab-button hs-tab-active:bg-indigo-600 hs-tab-active:text-white py-2 px-4 inline-flex items-center gap-2 bg-transparent text-sm font-medium text-center text-gray-500 rounded-lg hover:text-indigo-600" id="tab-btn-object" role="tab" aria-controls="tab-object">
+                            الشيئي (OODBMS)
+                        </button>
+                    </nav>
+                </div>
+
+                <div id="tab-relational" role="tabpanel" class="tab-content active bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-3">1. نظام إدارة قواعد البيانات المترابطة (RDBMS)</h3>
+                    <p class="mb-2">الأكثر شيوعًا، يمثل البيانات على شكل جداول (علاقات) ذات بعدين. كل جدول يمثل كينونة وخصائصها.</p>
+                    <p class="mb-2"><strong>المكونات:</strong> الجداول (Tables)، الصفوف (Rows/Records)، الأعمدة (Columns/Fields).</p>
+                    <p class="mb-2"><strong>المفاتيح:</strong></p>
+                    <ul class="list-disc list-inside space-y-1 mb-3">
+                        <li><strong>المفتاح الأساسي (Primary Key):</strong> حقل أو مجموعة حقول قيمتها فريدة لكل سجل، لا يمكن أن تكون فارغة. يميز كل سجل.</li>
+                        <li><strong>المفتاح الأجنبي (Foreign Key):</strong> حقل في جدول يشير إلى المفتاح الأساسي في جدول آخر، يستخدم لربط الجداول.</li>
+                    </ul>
+                    <h4 class="text-xl font-medium text-indigo-500 my-2">مثال: المنتج والبائع (مفهوم شكل 5.4)</h4>
+                     <p class="text-sm mb-2">مرر الفأرة فوق رؤوس الأعمدة المميزة لمعرفة نوع المفتاح.</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="overflow-x-auto">
+                            <p class="font-semibold text-center mb-1">جدول المنتج (السلعيات)</p>
+                            <table class="min-w-full divide-y divide-gray-200 border">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider key-field primary-key">رمز المنتج <span class="tooltip-text">مفتاح أساسي</span></th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وصف المنتج</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الكمية</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider key-field foreign-key">رمز البائع <span class="tooltip-text">مفتاح أجنبي</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr><td class="px-3 py-2 whitespace-nowrap">101</td><td class="px-3 py-2">شاشة</td><td class="px-3 py-2">50</td><td class="px-3 py-2">V01</td></tr>
+                                    <tr><td class="px-3 py-2 whitespace-nowrap">102</td><td class="px-3 py-2">لوحة مفاتيح</td><td class="px-3 py-2">120</td><td class="px-3 py-2">V02</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <p class="font-semibold text-center mb-1">جدول البائع</p>
+                            <table class="min-w-full divide-y divide-gray-200 border">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider key-field primary-key">رمز البائع <span class="tooltip-text">مفتاح أساسي</span></th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم البائع</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الهاتف</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr><td class="px-3 py-2 whitespace-nowrap">V01</td><td class="px-3 py-2">شركة الأجهزة الحديثة</td><td class="px-3 py-2">011234567</td></tr>
+                                    <tr><td class="px-3 py-2 whitespace-nowrap">V02</td><td class="px-3 py-2">مؤسسة التقنية</td><td class="px-3 py-2">011987654</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-hierarchical" role="tabpanel" class="tab-content bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-3">2. نظام إدارة قواعد البيانات الهرمية</h3>
+                    <p class="mb-2">ينظم البيانات على شكل شجرة (أب-ابن). كل سجل ابن له أب واحد فقط. العلاقة واحد-إلى-متعدد.</p>
+                    <p class="mb-2"><strong>العيوب:</strong> صعوبة استرجاع البيانات التي لا تتبع المسار الهرمي، وتكرار البيانات (إذا كان للابن أكثر من علاقة "أبوة" منطقية).</p>
+                    <h4 class="text-xl font-medium text-indigo-500 my-2">مثال: تنظيم جامعة (مفهوم شكل 5.5)</h4>
+                    <div class="hierarchical-diagram">
+                        <div class="parent">الكلية (جذر)
+                            <div class="children">
+                                <div class="parent">قسم الحاسوب
+                                    <div class="children">
+                                        <div class="parent">أستاذ: حسين رائد
+                                            <div class="children">
+                                                <div class="child">طالب: فريد توفيق (ورقة)</div>
+                                                <div class="child">طالب: سارة أحمد</div>
+                                            </div>
+                                        </div>
+                                        <div class="parent">أستاذة: نورة ياسين
+                                            <div class="children">
+                                                <div class="child text-red-500">طالب: فريد توفيق (تكرار محتمل)</div>
+                                                <div class="child">طالبة: ليلى علي</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="parent">قسم الرياضيات
+                                     <div class="children"><div class="child">...</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-sm text-red-600">لاحظ كيف يمكن أن يتكرر الطالب "فريد توفيق" إذا كان يتبع لأكثر من أستاذ في هذا النموذج الصارم.</p>
+                </div>
+
+                <div id="tab-network" role="tabpanel" class="tab-content bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-3">3. نظام إدارة شبكة قاعدة البيانات</h3>
+                    <p class="mb-2">تحسين للنموذج الهرمي، يسمح للسجل بأن يكون له أكثر من أب واحد (علاقة متعدد-إلى-متعدد). يقلل تكرار البيانات.</p>
+                    <p class="mb-2"><strong>العيب:</strong> بناء وتنظيم معقد، عملية استرجاع البيانات ليست سهلة. أقل النماذج استخدامًا.</p>
+                     <h4 class="text-xl font-medium text-indigo-500 my-2">مثال: نفس تنظيم الجامعة بدون تكرار (مفهوم شكل 5.7)</h4>
+                     <p class="mb-2">في النموذج الشبكي، الطالب "فريد توفيق" يمكن أن يرتبط مباشرة بالأستاذ "حسين رائد" والأستاذة "نورة ياسين" دون تكرار سجل الطالب نفسه. يتم ذلك عبر مؤشرات أو روابط معقدة.</p>
+                     <div class="bg-green-50 p-3 rounded border border-green-300">
+                        <p><strong>الطالب:</strong> فريد توفيق</p>
+                        <p class="ml-4">← مرتبط بـ: <strong>الأستاذ:</strong> حسين رائد</p>
+                        <p class="ml-4">← مرتبط بـ: <strong>الأستاذة:</strong> نورة ياسين</p>
+                        <p class="mt-1 text-sm">هذا التمثيل مبسط. الروابط الفعلية تكون أكثر تعقيدًا.</p>
+                     </div>
+                </div>
+
+                <div id="tab-object" role="tabpanel" class="tab-content bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-indigo-500 mb-3">4. نظام إدارة قاعدة البيانات الشيئية (OODBMS)</h3>
+                    <p class="mb-2">يتعامل مع أنواع بيانات معقدة (صور، صوتيات، فيديو). يخزن البيانات والإجراءات (الدوال) التي تطبق عليها كـ "كائنات" (Objects).</p>
+                    <p class="mb-2"><strong>الميزة:</strong> قدرة على تخزين أنواع معلومات أكثر تعقيدًا من RDBMS.</p>
+                    <p class="mb-2"><strong>العيب:</strong> قد تكون أبطأ في معالجة أعداد كبيرة من السجلات أو الإجراءات التقليدية مقارنة بـ RDBMS.</p>
+                </div>
+                <div class="mt-8">
+                    <h3 class="text-2xl font-semibold text-indigo-600 mb-3">مقارنة مفاهيمية بين نماذج قواعد البيانات</h3>
+                    <div class="chart-container bg-white p-4 rounded-lg shadow">
+                        <canvas id="dbmsModelsChart"></canvas>
+                    </div>
+                    <p class="text-sm text-center mt-2 text-gray-600">مخطط مفاهيمي لتقييم نسبي. القيم الفعلية قد تختلف.</p>
+                </div>
+            </div>
+
+            <div id="dbTypes" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">أنواع قواعد البيانات (صفحات 149-150)</h2>
+                <p class="mb-4 text-lg">يمكن تصنيف قواعد البيانات بناءً على عدة معايير. هذا القسم يوضح التصنيفات الرئيسية لمساعدتك على فهم السياقات المختلفة لاستخدام قواعد البيانات.</p>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-2xl font-semibold text-indigo-500 mb-2">5.4.1 حسب أعداد المستخدمين:</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>لمستخدم واحد (Single User):</strong> تدعم مستخدم واحد في كل مرة.</div>
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>متعددة المستخدمين (Multi-User):</strong> تدعم عدة مستخدمين في نفس الوقت.
+                                <ul class="list-disc list-inside mt-1 text-sm">
+                                    <li><strong>لمجموعة عمل (Workgroup):</strong> لمجموعة صغيرة أو قسم.</li>
+                                    <li><strong>للمشاريع الكبيرة (Enterprise):</strong> للمنظمة بأكملها.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-semibold text-indigo-500 mb-2">5.4.2 حسب المكان:</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>مركزية (Centralized):</strong> البيانات في موقع واحد.</div>
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>موزعة (Distributed):</strong> البيانات مخزنة في أكثر من موقع وتظهر كوحدة واحدة.</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-semibold text-indigo-500 mb-2">5.4.3 حسب الاستخدام:</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>تشغيلية/حركية (Operational/Transactional):</strong> تدعم العمليات اليومية (مبيعات، مشتريات). مصممة للمعاملات السريعة.</div>
+                            <div class="bg-white p-4 rounded-lg shadow"><strong>مستودع بيانات (Data Warehouse):</strong> لتخزين بيانات تاريخية ضخمة من مصادر متعددة بهدف التحليل ودعم اتخاذ القرار.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dbmsComponents" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">مكونات نظام إدارة قواعد البيانات (صفحات 150-152)</h2>
+                <p class="mb-4 text-lg">يحتوي نظام إدارة قواعد البيانات على أدوات ومكونات أساسية لتنظيم وإدارة البيانات والوصول إليها. هذا القسم يشرح أهم هذه المكونات.</p>
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold text-indigo-500 mb-1">5.5.1 وظيفة تعريف البيانات (DDL - Data Definition Language)</h3>
+                        <p>تستخدم لتعريف بنية محتويات قاعدة البيانات، مثل بناء الجداول وتعريف خصائص الحقول (نوع البيانات، الحجم، الشكل).</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold text-indigo-500 mb-1">5.5.2 قاموس البيانات (Data Dictionary / System Catalog)</h3>
+                        <p class="mb-2">يحتوي على "بيانات عن البيانات" (Metadata)، أي معلومات وصفية حول بنية قاعدة البيانات، أسماء الملفات والسجلات والحقول وأنواعها، ومعلومات عن المستخدمين وصلاحياتهم.</p>
+                        <h4 class="text-lg font-medium text-indigo-500 my-2">مثال مبسط لقاموس بيانات لملف الطالب (مفهوم شكل 5.9)</h4>
+                        <table class="min-w-full bg-blue-50 border border-blue-200 text-sm">
+                            <thead>
+                                <tr><th class="p-2 border">اسم الحقل</th><th class="p-2 border">الوصف</th><th class="p-2 border">النوع</th><th class="p-2 border">الحجم</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="p-2 border">رقم_الطالب</td><td class="p-2 border">الرقم الجامعي للطالب</td><td class="p-2 border">رقمي</td><td class="p-2 border">8</td></tr>
+                                <tr><td class="p-2 border">اسم_الطالب</td><td class="p-2 border">الاسم الكامل للطالب</td><td class="p-2 border">نصي</td><td class="p-2 border">50</td></tr>
+                                <tr><td class="p-2 border">تاريخ_الميلاد</td><td class="p-2 border">تاريخ ميلاد الطالب</td><td class="p-2 border">تاريخ</td><td class="p-2 border">10</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold text-indigo-500 mb-1">5.5.3 الاستعلام والتقارير (DML - Data Manipulation Language & Query Language)</h3>
+                        <p class="mb-2">أدوات للوصول ومعالجة المعلومات. لغة معالجة البيانات (DML) تستخدم لإضافة، تغيير، مسح، واسترجاع البيانات.</p>
+                        <p><strong>لغة الاستعلام الهيكلية (SQL - Structured Query Language):</strong> هي اللغة القياسية للتفاعل مع قواعد البيانات المترابطة. تشمل أوامر مثل:</p>
+                        <ul class="list-disc list-inside mt-1 bg-green-50 p-2 rounded border border-green-200">
+                            <li><code>SELECT</code>: لاسترجاع البيانات.</li>
+                            <li><code>INSERT</code>: لإضافة بيانات جديدة.</li>
+                            <li><code>UPDATE</code>: لتحديث البيانات الموجودة.</li>
+                            <li><code>DELETE</code>: لحذف البيانات.</li>
                         </ul>
-                    </li>
-                    <li>
-                        <strong>عدم اتساق البيانات (Data Inconsistency):</strong>
-                        بسبب التكرار، قد تظهر نفس البيانات بقيم مختلفة في ملفات مختلفة. مثلاً، عنوان العميل محدث في ملف واحد وغير محدث في آخر.
-                    </li>
-                    <li>
-                        <strong>اعتماد البرامج على البيانات (Program-Data Dependence):</strong>
-                        تكون البرامج مصممة للعمل مع تنسيق ملفات محدد. أي تغيير في هيكل الملف يتطلب تعديل البرنامج.
-                    </li>
-                    <li>
-                        <strong>ضعف مشاركة البيانات (Poor Data Sharing):</strong>
-                        صعوبة مشاركة البيانات بين التطبيقات أو الأقسام المختلفة بسبب عدم وجود تنسيق موحد أو مركزية للبيانات.
-                    </li>
-                    <li>
-                        <strong>ضعف الأمن (Poor Security):</strong>
-                        صعوبة فرض ضوابط أمنية موحدة على البيانات الموزعة في ملفات متعددة.
-                    </li>
-                </ul>
+                        <p class="mt-2">توفر أنظمة DBMS أيضًا أدوات لإنشاء تقارير منظمة ومرتبة.</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.3 قاعدة البيانات (Database) (صفحة 141)</h2>
-                <p>
-                    هي مجموعة منظمة من البيانات المخزنة والوصول إليها إلكترونيًا. تهدف إلى حل مشاكل التنظيم التقليدي للملفات.
-                </p>
-                <h3 class="sub-section-title">5.3.1 نظام إدارة قاعدة البيانات (Database Management System - DBMS) (صفحة 141)</h3>
-                <p>
-                    هو برنامج وسيط بين المستخدمين وقاعدة البيانات. يسمح بإنشاء قاعدة البيانات، وإدارتها، وتعديلها، واسترجاع المعلومات منها.
-                </p>
-                <h3 class="sub-section-title">5.3.2 نماذج نظام إدارة قاعدة البيانات (DBMS Models) (صفحة 142)</h3>
-                <p>
-                    توجد عدة نماذج لتنظيم البيانات داخل قاعدة البيانات، وأكثرها شيوعًا هي:
-                </p>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>النموذج العلائقي (Relational Database Model):</strong>
-                        (الأكثر شيوعًا) ينظم البيانات في جداول (Tables) مكونة من صفوف (Rows) تمثل السجلات، وأعمدة (Columns) تمثل الحقول. يتم ربط الجداول ببعضها البعض باستخدام مفاتيح (Keys) مشتركة.
-                    </li>
-                    <li>
-                        <strong>النموذج الهرمي (Hierarchical Database Model):</strong>
-                        (أقدم) ينظم البيانات على شكل شجرة، حيث كل سجل "أب" يمكن أن يكون له عدة سجلات "أبناء"، ولكن كل سجل "ابن" يمكن أن يكون له أب واحد فقط.
-                    </li>
-                    <li>
-                        <strong>نموذج الشبكة (Network Database Model):</strong>
-                        (تطوير للهرمي) يسمح لكل سجل "ابن" أن يكون له عدة آباء، مما يوفر مرونة أكبر في الروابط.
-                    </li>
-                    <li>
-                        <strong>نموذج الكائن الموجه (Object-Oriented Database Model):</strong>
-                        يخزن البيانات في شكل كائنات (Objects) تحتوي على البيانات والعمليات المرتبطة بها، وهو مناسب للبيانات المعقدة مثل الوسائط المتعددة.
-                    </li>
-                </ul>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.4 أنواع قواعد البيانات (صفحة 149)</h2>
-                <p>يمكن تصنيف قواعد البيانات بناءً على عدة معايير:</p>
-                <h3 class="sub-section-title">5.4.1 أعداد المستخدمين (صفحة 149)</h3>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>قاعدة بيانات المستخدم الواحد (Single User Database):</strong>
-                        يستخدمها شخص واحد فقط في نفس الوقت.
-                    </li>
-                    <li>
-                        <strong>قاعدة بيانات المستخدمين المتعددين (Multi-User Database):</strong>
-                        يستخدمها عدة أشخاص في نفس الوقت.
-                    </li>
-                </ul>
-                <h3 class="sub-section-title">5.4.2 المكان (صفحة 150)</h3>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>قاعدة بيانات مركزية (Centralized Database):</strong>
-                        تخزن في مكان واحد (خادم واحد).
-                    </li>
-                    <li>
-                        <strong>قاعدة بيانات موزعة (Distributed Database):</strong>
-                        تخزن في عدة مواقع جغرافية، وتكون متصلة مع بعضها البعض.
-                    </li>
-                </ul>
-                <h3 class="sub-section-title">5.4.3 الاستخدام (صفحة 150)</h3>
-                <ul class="list-disc pr-6">
-                    <li>
-                        <strong>قاعدة بيانات تشغيلية (Operational Database):</strong>
-                        تستخدم لمعالجة المعاملات اليومية (مثلاً، تسجيل المبيعات).
-                    </li>
-                    <li>
-                        <strong>قاعدة بيانات تحليلية (Analytical Database):</strong>
-                        تستخدم لتحليل البيانات التاريخية واستخلاص الأنماط والقرارات (مثل مستودعات البيانات).
-                    </li>
-                </ul>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.5 المكونات الرئيسية لنظام إدارة قاعدة البيانات (صفحة 150)</h2>
-                <h3 class="sub-section-title">5.5.1 وظيفة تعريف البيانات (Data Definition Function) (صفحة 151)</h3>
-                <p>
-                    تسمح بتعريف هيكل قاعدة البيانات (الجداول، الحقول، أنواع البيانات، العلاقات).
-                </p>
-                <h3 class="sub-section-title">5.5.2 قاموس البيانات (Data Dictionary) (صفحة 151)</h3>
-                <p>
-                    يحتوي على تعريفات لكل عنصر بيانات في قاعدة البيانات (مثل اسم الحقل، نوعه، حجمه، وصفه).
-                </p>
-                <h3 class="sub-section-title">5.5.3 الاستعلام والتقارير (Query and Reporting) (صفحة 151)</h3>
-                <p>
-                    يوفر أدوات للمستخدمين لاسترجاع البيانات وتعديلها وتحليلها وإنشاء التقارير (مثل لغة SQL).
-                </p>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.6 استخدام قاعدة البيانات لتحسين فعالية الأعمال واتخاذ القرارات (صفحة 152)</h2>
-                <p>
-                    تمكن قواعد البيانات الحديثة الشركات من جمع كميات هائلة من البيانات وتحليلها لدعم اتخاذ القرارات وتحسين العمليات.
-                </p>
-                <h3 class="sub-section-title">5.6.1 مستودع البيانات (Data Warehouse) (صفحة 153)</h3>
-                <p>
-                    قاعدة بيانات كبيرة مصممة لتخزين كميات ضخمة من البيانات التاريخية من مصادر متعددة، بهدف التحليل واتخاذ القرارات.
-                </p>
-                <h3 class="sub-section-title">5.6.2 مستودع البيانات الجزئي (Data Mart) (صفحة 153)</h3>
-                <p>
-                    نسخة مصغرة من مستودع البيانات، مصممة لتلبية احتياجات قسم معين أو وظيفة محددة في المؤسسة.
-                </p>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.7 ذكاء الأعمال (Business Intelligence) (صفحة 154)</h2>
-                <p>
-                    مجموعة من التقنيات والأدوات والعمليات التي تساعد المؤسسات على تحويل البيانات الخام إلى معلومات قابلة للفهم لاتخاذ قرارات أفضل وأكثر استنارة. يشمل:
-                </p>
-                <ul class="list-disc pr-6">
-                    <li>استخراج البيانات (Data Mining)</li>
-                    <li>التحليل الإحصائي (Statistical Analysis)</li>
-                    <li>العروض التقديمية للبيانات (Data Presentation)</li>
-                </ul>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.8 قاعدة البيانات والويب (Database and the Web) (صفحة 156)</h2>
-                <p>
-                    تسمح تقنيات الويب (مثل HTML, CSS, JavaScript) بالوصول إلى قواعد البيانات عبر الإنترنت. تطبيقات الويب تستخدم DBMS لجلب وعرض البيانات من قواعد البيانات للمستخدمين عبر المتصفح.
-                </p>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.9 إدارة مصادر البيانات (Managing Data Resources) (صفحة 157)</h2>
-                <p>
-                    لضمان جودة وأمان البيانات، يجب إدارة مصادر البيانات بشكل فعال.
-                </p>
-                <h3 class="sub-section-title">5.9.1 إنشاء سياسة المعلومات (Establishing an Information Policy) (صفحة 157)</h3>
-                <p>
-                    تحديد القواعد والمسؤوليات لمن يمكنه الوصول إلى البيانات، وكيف يمكن استخدامها، ومن هو المسؤول عنها.
-                </p>
-                <h3 class="sub-section-title">5.9.2 ضمان جودة البيانات (Ensuring Data Quality) (صفحة 158)</h3>
-                <p>
-                    التأكد من أن البيانات دقيقة، كاملة، متناسقة، وفي الوقت المناسب. يتطلب ذلك عمليات تدقيق للبيانات وتنظيفها.
-                </p>
-            </div>
-
-            <div class="section-card">
-                <h2 class="text-2xl mb-4">5.10 وحدات تخزين البيانات (Data Storage Units) (صفحة 159)</h2>
-                <p>
-                    بالإضافة إلى البت والبايت، توجد وحدات تخزين أكبر:
-                </p>
-                <ul class="list-disc pr-6">
-                    <li>كيلوبايت (KB) = 1024 بايت</li>
-                    <li>ميجابايت (MB) = 1024 كيلوبايت</li>
-                    <li>جيجابايت (GB) = 1024 ميجابايت</li>
-                    <li>تيرابايت (TB) = 1024 جيجابايت</li>
-                    <li>بيتابايت (PB) = 1024 تيرابايت</li>
-                </ul>
+            <div id="dbBenefits" class="content-section">
+                <h2 class="text-3xl font-semibold text-indigo-600 mb-4">فوائد قواعد البيانات للأعمال (صفحة 152)</h2>
+                <p class="mb-4 text-lg">تساهم قواعد البيانات بشكل كبير في تحسين فعالية الأعمال ودعم اتخاذ القرارات. هذا القسم يلقي الضوء على كيفية تحقيق ذلك.</p>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li>تستخدم المنظمات قواعد البيانات لمتابعة الحركات والتعاملات اليومية (مثل الدفع للموردين، تنفيذ الطلبات، متابعة الزبائن، دفع الرواتب).</li>
+                        <li>توفر المعلومات التي تساعد الشركات على أداء أعمالها بفعالية أكبر.</li>
+                        <li>تساعد المدراء والموظفين على اتخاذ قرارات أفضل بناءً على بيانات دقيقة ومحدثة.</li>
+                        <li>تمكن من تحليل البيانات لاستخلاص رؤى قيمة (مثل معرفة أفضل السلع مبيعًا، أو العملاء الأكثر ربحية).</li>
+                    </ul>
+                    <div class="mt-4 border-t pt-4">
+                        <h4 class="text-lg font-semibold text-indigo-500">مثال من الكتاب:</h4>
+                        <p class="text-gray-600 italic">"بواسطة تحليل بيانات المشتريات في البطاقات الائتمانية للزبائن فإن مطعم الفريد استطاع معرفة أن الجودة أهم من الأسعار للكثير من الزبائن مما جعله يركز على تحسين جودة الطعام والخدمة، الأمر الذي أدى إلى زيادة رضا العملاء وولائهم."</p>
+                    </div>
+                </div>
             </div>
         </main>
-
-        <footer class="text-center text-gray-500 text-sm mt-8">
-            <p>&copy; 2025 قيس طلال غالب الجازي. جميع الحقوق محفوظة.</p>
-        </footer>
     </div>
+
+    <script>
+        const navLinks = document.querySelectorAll('#sidebarNav a');
+        const contentSections = document.querySelectorAll('.content-section');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        function showSection(targetId) {
+            contentSections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === targetId) {
+                    section.classList.add('active');
+                }
+            });
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.target === targetId) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const targetId = link.dataset.target;
+                showSection(targetId);
+            });
+        });
+
+        function toggleDetails(detailsId) {
+            const detailsDiv = document.getElementById(detailsId);
+            if (detailsDiv) {
+                detailsDiv.style.display = detailsDiv.style.display === 'none' || detailsDiv.style.display === '' ? 'block' : 'none';
+            }
+        }
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.getAttribute('aria-controls');
+
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === targetTab) {
+                        content.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Initial section display
+        if (navLinks.length > 0) {
+             showSection(navLinks[0].dataset.target); // Show the first section by default
+        }
+
+
+        // Chart.js for DBMS Models Comparison
+        const ctx = document.getElementById('dbmsModelsChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'العلائقي (RDBMS)',
+                        data: [{x: 7, y: 8}], // x: Ease of Use, y: Flexibility
+                        backgroundColor: 'rgb(255, 99, 132)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }, {
+                        label: 'الهرمي',
+                        data: [{x: 5, y: 3}],
+                        backgroundColor: 'rgb(54, 162, 235)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }, {
+                        label: 'الشبكي',
+                        data: [{x: 3, y: 6}],
+                        backgroundColor: 'rgb(255, 205, 86)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }, {
+                        label: 'الشيئي (OODBMS)',
+                        data: [{x: 4, y: 9}], // High flexibility for complex data
+                        backgroundColor: 'rgb(75, 192, 192)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'سهولة الاستخدام/التطوير (مقياس تقديري 1-10)'
+                            },
+                            min: 0,
+                            max: 10
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'مرونة/قوة نموذج البيانات (مقياس تقديري 1-10)'
+                            },
+                            min: 0,
+                            max: 10
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += `(سهولة ${context.parsed.x}, مرونة ${context.parsed.y})`;
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
+</html>
